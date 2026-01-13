@@ -63,7 +63,8 @@ app.get('/debug-info', (req, res) => {
 // NEW: Database Debug Endpoint
 app.get('/debug-db', async (req, res) => {
     try {
-        const hasDbUrl = !!process.env.DATABASE_URL;
+        const dbUrl = process.env.DATABASE_URL;
+        const hasDbUrl = !!dbUrl;
         let dbResult = null;
         let dbError = null;
 
@@ -76,8 +77,13 @@ app.get('/debug-db', async (req, res) => {
             }
         }
 
+        // Return ALL keys to see if we are missing it or if it's named differently
+        const envKeys = Object.keys(process.env).sort();
+
         res.json({
             hasDbUrl,
+            envKeys, // Debugging: what do we have?
+            dbUrlPreview: hasDbUrl ? dbUrl.substring(0, 15) + '...' : 'N/A',
             ssl: process.env.NODE_ENV === 'production',
             dbResult,
             dbError
