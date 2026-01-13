@@ -53,10 +53,11 @@
     margin-bottom: 0.5rem;
     position: relative;
     z-index: 1;
+    text-shadow: 1px 1px 1px black;
 }
 
 .header-subtitle {
-    opacity: 0.9;
+    opacity: 1;
     position: relative;
     z-index: 1;
     width: fit-content;
