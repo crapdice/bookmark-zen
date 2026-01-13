@@ -102,10 +102,29 @@ app.post('/analyze', async (req, res) => {
     let browser = null;
     try {
         // Launch with stealth plugin enabled
-        browser = await chromium.launch({ headless: true });
+        browser = await chromium.launch({
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
 
         // Process sequentially to be gentle on resources
         for (const url of urlsToVisit) {
+            // PDF Detection: Skip Playwright for PDFs
+            if (url.toLowerCase().endsWith('.pdf')) {
+                console.log(`Skipping Playwright for PDF: ${url}`);
+                const filename = url.split('/').pop() || 'Untitled PDF';
+                const meta = {
+                    title: filename,
+                    description: 'PDF Document',
+                    keywords: 'pdf',
+                    isPdf: true, // Special flag
+                    status: 'alive'
+                };
+                metadataCache[url] = meta;
+                results[url] = meta;
+                continue;
+            }
+
             try {
                 const context = await browser.newContext({
                     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -233,6 +252,14 @@ app.post('/categorize', (req, res) => {
     bookmarks.forEach(bm => {
         const url = bm.url;
         const meta = metadata[url] || {};
+
+        // PDF Handling
+        if (meta.isPdf) {
+            if (!root['PDFs']) root['PDFs'] = createNode();
+            root['PDFs'].items.push(bm);
+            return; // Skip content-based categorization
+        }
+
         const fullText = `${url} ${meta.title || bm.title} ${meta.description || ''} ${meta.keywords || ''}`.toLowerCase();
 
         let assigned = false;
@@ -296,13 +323,19 @@ app.post('/categorize', (req, res) => {
 
         uncategorizedItems.forEach(bm => {
             const meta = metadata[bm.url] || {};
-            // Weight fields: Title > Keywords > Body
+
+            // Fallback to bookmark title and URL tokens if analysis failed
+            const title = meta.title || bm.title || '';
+            const urlTokens = bm.url.split(/[\/\-\_\.]/).filter(w => w.length > 3 && !w.includes('http') && !w.includes('www')).join(' ');
+
+            // Weight fields: Title > Keywords > Body > URL
             // We just concat nicely to get a bag of words
             const textStats = [
-                (meta.title || '').repeat(3),
+                title.repeat(3),
                 (meta.keywords || '').repeat(2),
                 (meta.description || ''),
-                (meta.fullContent || '')
+                (meta.fullContent || ''),
+                urlTokens
             ].join(' ').toLowerCase();
 
             // Simple tokenizer
@@ -336,7 +369,8 @@ app.post('/categorize', (req, res) => {
             // (Or we could allow duplicates? For now, let's be exclusive to keep it clean)
             if (unassignedItems.length >= MIN_CLUSTER_SIZE) {
                 // Capitalize term
-                const catName = `Topic: ${term.charAt(0).toUpperCase() + term.slice(1)}`;
+                // Capitalize term
+                const catName = term.charAt(0).toUpperCase() + term.slice(1);
 
                 clusters[catName] = {
                     items: unassignedItems,

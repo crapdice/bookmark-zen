@@ -14,6 +14,7 @@ function App() {
   const [metadata, setMetadata] = useState({});
   const [categories, setCategories] = useState(null);
   const [statusMsg, setStatusMsg] = useState('');
+  const [currentUrl, setCurrentUrl] = useState('');
   const [progress, setProgress] = useState(0);
 
   const handleUpload = async (htmlContent) => {
@@ -30,14 +31,15 @@ function App() {
         const urls = res.data.bookmarks.map(b => b.url).filter(u => u && u.startsWith('http'));
 
         // Batch Processing
-        const BATCH_SIZE = 3;
+        const BATCH_SIZE = 1;
         const total = urls.length;
         let processed = 0;
         let allMetadata = {};
 
         for (let i = 0; i < total; i += BATCH_SIZE) {
           const batch = urls.slice(i, i + BATCH_SIZE);
-          setStatusMsg(`Analyzing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(total / BATCH_SIZE)}...`);
+          setStatusMsg(`Analyzing bookmark ${i + 1} of ${total}...`);
+          setCurrentUrl(batch[0]);
 
           try {
             const analysisRes = await axios.post('/analyze', { urls: batch });
@@ -52,6 +54,7 @@ function App() {
         }
 
         setStatusMsg('Organizing content...');
+        setCurrentUrl('');
 
         // Categorize with ALL metadata
         const catRes = await axios.post('/categorize', { bookmarks: res.data.bookmarks, metadata: allMetadata });
@@ -78,7 +81,7 @@ function App() {
 
       <main>
         {view === 'upload' && <UploadView onUpload={handleUpload} />}
-        {view === 'processing' && <ProcessingView status={statusMsg} progress={progress} />}
+        {view === 'processing' && <ProcessingView status={statusMsg} url={currentUrl} progress={progress} />}
         {view === 'dashboard' && <Dashboard bookmarks={bookmarks} metadata={metadata} categories={categories} />}
       </main>
     </div >
