@@ -21,18 +21,63 @@ function App() {
   const [currentUrl, setCurrentUrl] = useState('');
   const [progress, setProgress] = useState(0);
 
-  // Check login status on load
+  // Reusable Categorizer
+  const runCategorization = async (bms, metas) => {
+    try {
+      const catRes = await axios.post('/categorize', { bookmarks: bms, metadata: metas });
+      setCategories(catRes.data.categories);
+    } catch (err) {
+      console.error("Categorization failed", err);
+    }
+  };
+
+  // Check login status on load & Fetch saved bookmarks
   React.useEffect(() => {
+    // 1. Check Session
     axios.get('/api/me')
-      .then(res => setUser(res.data.user))
+      .then(res => {
+        const u = res.data.user;
+        setUser(u);
+        if (u) fetchSavedBookmarks();
+      })
       .catch(() => setUser(null));
   }, []);
+
+  // Also fetch when user explicitly logs in (via Modal)
+  React.useEffect(() => {
+    if (user) fetchSavedBookmarks();
+  }, [user]);
+
+  const fetchSavedBookmarks = async () => {
+    try {
+      const res = await axios.get('/bookmarks');
+      if (res.data.bookmarks && res.data.bookmarks.length > 0) {
+        const bms = res.data.bookmarks;
+        setBookmarks(bms);
+
+        // Rehydrate Metadata from DB
+        const metas = {};
+        bms.forEach(b => {
+          if (b.metadata) metas[b.url] = b.metadata;
+        });
+        setMetadata(metas);
+
+        // Trigger Categorization
+        runCategorization(bms, metas);
+        setView('dashboard');
+      }
+    } catch (err) {
+      console.error("Failed to fetch saved bookmarks", err);
+    }
+  };
 
   const handleLogout = async () => {
     await axios.post('/api/logout');
     setUser(null);
     setView('upload');
     setBookmarks([]);
+    setMetadata({});
+    setCategories(null);
   };
 
   const handleUpload = async (htmlContent) => {
@@ -75,8 +120,7 @@ function App() {
         setCurrentUrl('');
 
         // Categorize with ALL metadata
-        const catRes = await axios.post('/categorize', { bookmarks: res.data.bookmarks, metadata: allMetadata });
-        setCategories(catRes.data.categories);
+        await runCategorization(res.data.bookmarks, allMetadata);
 
         setView('dashboard');
       }

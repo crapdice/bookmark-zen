@@ -45,7 +45,7 @@
 }
 
 .header-title {
-    background: linear-gradient(to right, #818cf8, #c084fc);
+    background: linear-gradient(to right, #e6e7ee, #04eaa1);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -53,7 +53,6 @@
     margin-bottom: 0.5rem;
     position: relative;
     z-index: 1;
-    text-shadow: 1px 1px 1px black;
 }
 
 .header-subtitle {
