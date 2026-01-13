@@ -5,6 +5,7 @@ const cheerio = require('cheerio');
 const axios = require('axios');
 const { chromium } = require('playwright-extra');
 const stealth = require('puppeteer-extra-plugin-stealth');
+const db = require('./db'); // Database connection
 
 // Use Stealth Plugin
 chromium.use(stealth());
@@ -56,25 +57,70 @@ app.get('/debug-info', (req, res) => {
 });
 
 // 1. Upload & Parse
-app.post('/upload', (req, res) => {
+app.post('/upload', async (req, res) => {
     try {
         const htmlContent = req.body;
         const $ = cheerio.load(htmlContent);
         const bookmarks = [];
 
+        // Temporary: Create a default user if none exists
+        // In production, this would come from Auth middleware
+        // await db.query("INSERT INTO users (username) VALUES ('demo_user') ON CONFLICT DO NOTHING");
+        const userId = 1; // Assuming ID 1 exists for now or we skip user linking for pure MVL (Minimum Viable Links)
+
+        const promises = [];
+
         $('a').each((i, el) => {
             const $el = $(el);
-            bookmarks.push({
-                id: i,
-                title: $el.text().trim() || 'Untitled',
-                url: $el.attr('href'),
-                // Basic folder extraction is hard with flattened selection, 
-                // but we can try to walk up to <DL><DT><H3>...
-                // For now, flat list is okay, we will reorganize anyway.
-                originalFolder: $el.closest('dl').prev('dt').find('h3').text() || 'Uncategorized',
-                addDate: $el.attr('add_date')
-            });
+            const url = $el.attr('href');
+            const title = $el.text().trim() || 'Untitled';
+            const addDate = $el.attr('add_date');
+            const folder = $el.closest('dl').prev('dt').find('h3').text() || 'Uncategorized';
+
+            if (url) {
+                bookmarks.push({
+                    id: i,
+                    title,
+                    url,
+                    originalFolder: folder,
+                    addDate
+                });
+
+                // DB SAVE: Insert Link global
+                const p = (async () => {
+                    try {
+                        const domain = new URL(url).hostname;
+                        // 1. Insert global Link
+                        const linkRes = await db.query(
+                            `INSERT INTO links (url, domain, created_at) 
+                             VALUES ($1, $2, NOW()) 
+                             ON CONFLICT (url) DO UPDATE SET url=EXCLUDED.url 
+                             RETURNING id`,
+                            [url, domain]
+                        );
+                        const linkId = linkRes.rows[0].id;
+
+                        // 2. Insert User Bookmark
+                        /*
+                        await db.query(
+                            `INSERT INTO user_bookmarks (user_id, link_id, original_title, original_folder, added_at)
+                             VALUES ($1, $2, $3, $4, TO_TIMESTAMP($5::double precision))
+                             ON CONFLICT DO NOTHING`,
+                            [userId, linkId, title, folder, addDate]
+                        );
+                        */
+                    } catch (err) {
+                        // console.error("DB Insert Error for " + url, err.message);
+                        // Suppress for now if DB isn't connected/setup to avoid breaking the demo
+                    }
+                })();
+                promises.push(p);
+            }
         });
+
+        // Fire and forget DB saves for speed? Or await?
+        // Let's await a bit or just let them run. For massive files, awaiting all might be slow.
+        // For now, we won't block the UI response on DB writes.
 
         globalBookmarks = bookmarks;
         console.log(`Parsed ${bookmarks.length} bookmarks.`);
@@ -122,6 +168,13 @@ app.post('/analyze', async (req, res) => {
                 };
                 metadataCache[url] = meta;
                 results[url] = meta;
+
+                // DB UPDATE
+                db.query(
+                    `UPDATE links SET title=$1, description=$2, media_type='pdf', metadata_json=$3 WHERE url=$4`,
+                    [meta.title, meta.description, meta, url]
+                ).catch(() => { });
+
                 continue;
             }
 
@@ -169,6 +222,12 @@ app.post('/analyze', async (req, res) => {
                 metadataCache[url] = meta;
                 results[url] = meta;
 
+                // DB UPDATE
+                db.query(
+                    `UPDATE links SET title=$1, description=$2, keywords=$3, metadata_json=$4, last_scraped_at=NOW(), http_status=200 WHERE url=$5`,
+                    [meta.title, meta.description, meta.keywords, meta, url]
+                ).catch(() => { });
+
                 await context.close();
 
             } catch (err) {
@@ -176,6 +235,12 @@ app.post('/analyze', async (req, res) => {
                 const failMeta = { status: 'dead', error: err.message };
                 metadataCache[url] = failMeta;
                 results[url] = failMeta;
+
+                // DB UPDATE (Dead Link)
+                db.query(
+                    `UPDATE links SET http_status=500, last_scraped_at=NOW() WHERE url=$1`,
+                    [url]
+                ).catch(() => { });
             }
         }
     } catch (err) {
