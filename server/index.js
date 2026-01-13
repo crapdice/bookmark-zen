@@ -44,16 +44,47 @@ app.get('/health', (req, res) => {
 
 app.get('/debug-info', (req, res) => {
     const fs = require('fs');
-    const debug = {
+    const path = require('path');
+    const clientBuildPath = path.join(__dirname, '../client/dist');
+    const indexHtmlPath = path.join(clientBuildPath, 'index.html');
+
+    res.json({
         cwd: process.cwd(),
         dirname: __dirname,
-        clientBuildPath: CLIENT_BUILD_PATH,
-        buildPathExists: fs.existsSync(CLIENT_BUILD_PATH),
-        buildPathContents: fs.existsSync(CLIENT_BUILD_PATH) ? fs.readdirSync(CLIENT_BUILD_PATH) : 'N/A',
-        indexHtmlPath: path.join(CLIENT_BUILD_PATH, 'index.html'),
-        indexHtmlExists: fs.existsSync(path.join(CLIENT_BUILD_PATH, 'index.html'))
-    };
-    res.json(debug);
+        clientBuildExists: fs.existsSync(clientBuildPath),
+        indexHtmlExists: fs.existsSync(indexHtmlPath),
+        env: {
+            PORT: process.env.PORT,
+            NODE_ENV: process.env.NODE_ENV
+        }
+    });
+});
+
+// NEW: Database Debug Endpoint
+app.get('/debug-db', async (req, res) => {
+    try {
+        const hasDbUrl = !!process.env.DATABASE_URL;
+        let dbResult = null;
+        let dbError = null;
+
+        if (hasDbUrl) {
+            try {
+                const result = await db.query('SELECT NOW() as time');
+                dbResult = result.rows[0];
+            } catch (err) {
+                dbError = err.message;
+            }
+        }
+
+        res.json({
+            hasDbUrl,
+            ssl: process.env.NODE_ENV === 'production',
+            dbResult,
+            dbError
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // 1. Upload & Parse
