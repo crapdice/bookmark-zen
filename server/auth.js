@@ -1,7 +1,10 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_dev_key_123';
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+    console.warn("WARNING: JWT_SECRET is not set in production! Using insecure default for dev functionality.");
+}
+const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_only_do_not_use_in_prod';
 const SALT_ROUNDS = 10;
 
 // Password Hashing
