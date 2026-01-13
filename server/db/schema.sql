@@ -24,10 +24,19 @@ CREATE INDEX IF NOT EXISTS idx_links_domain ON links(domain);
 -- 2. USERS Table (Simple for now, can expand later)
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
-    username VARCHAR(255) UNIQUE,
-    email VARCHAR(255),
+    username VARCHAR(255),
+    email VARCHAR(255) UNIQUE, -- Email should be unique for login
+    password_hash TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Migration for existing active databases
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='password_hash') THEN
+        ALTER TABLE users ADD COLUMN password_hash TEXT;
+    END IF;
+END $$;
 
 -- 3. USER_BOOKMARKS Table (The User's Collection)
 CREATE TABLE IF NOT EXISTS user_bookmarks (

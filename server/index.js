@@ -5,7 +5,9 @@ const cheerio = require('cheerio');
 const axios = require('axios');
 const { chromium } = require('playwright-extra');
 const stealth = require('puppeteer-extra-plugin-stealth');
+const cookieParser = require('cookie-parser');
 const db = require('./db'); // Database connection
+const { hashPassword, comparePassword, generateToken, authenticateToken } = require('./auth');
 
 // Use Stealth Plugin
 chromium.use(stealth());
@@ -15,8 +17,10 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
+app.use(cookieParser());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.text({ limit: '50mb', type: 'text/html' }));
+app.use(authenticateToken); // Check for token on every request
 
 // Debug logging
 app.use((req, res, next) => {
@@ -93,6 +97,78 @@ app.get('/debug-db', async (req, res) => {
     }
 });
 
+// AUTH ROUTES
+app.post('/api/register', async (req, res) => {
+    try {
+        const { email, password, username } = req.body;
+        if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+
+        const hashedPassword = await hashPassword(password);
+
+        // Use username if provided, else define from email
+        const finalUsername = username || email.split('@')[0];
+
+        const result = await db.query(
+            `INSERT INTO users (email, username, password_hash) VALUES ($1, $2, $3) RETURNING id, email, username`,
+            [email, finalUsername, hashedPassword]
+        );
+
+        const user = result.rows[0];
+        const token = generateToken(user);
+
+        // Set HttpOnly Cookie
+        res.cookie('auth_token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
+        res.json({ user });
+    } catch (err) {
+        if (err.code === '23505') return res.status(400).json({ error: 'Email already exists' });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+        const user = result.rows[0];
+
+        if (!user || !(await comparePassword(password, user.password_hash))) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        const token = generateToken(user);
+
+        res.cookie('auth_token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+
+        res.json({ user: { id: user.id, email: user.email, username: user.username } });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/logout', (req, res) => {
+    res.clearCookie('auth_token');
+    res.json({ success: true });
+});
+
+app.get('/api/me', (req, res) => {
+    if (req.user) {
+        res.json({ user: req.user });
+    } else {
+        res.json({ user: null });
+    }
+});
+
 // 1. Upload & Parse
 app.post('/upload', async (req, res) => {
     try {
@@ -100,10 +176,11 @@ app.post('/upload', async (req, res) => {
         const $ = cheerio.load(htmlContent);
         const bookmarks = [];
 
-        // Temporary: Create a default user if none exists
-        // In production, this would come from Auth middleware
-        // await db.query("INSERT INTO users (username) VALUES ('demo_user') ON CONFLICT DO NOTHING");
-        const userId = 1; // Assuming ID 1 exists for now or we skip user linking for pure MVL (Minimum Viable Links)
+        // Use logged in user OR default to 1 (Demo) but warn/handle
+        const userId = req.user ? req.user.id : 1;
+
+        // If strict auth required later:
+        // if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
 
         const promises = [];
 
