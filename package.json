@@ -6,7 +6,7 @@
     "node": "20.x"
   },
   "scripts": {
-    "postinstall": "npm install --prefix server && npm install --prefix client && cd server && npx playwright install chromium",
+    "postinstall": "npm install --prefix server && npm install --prefix client && cd server && npx playwright install --with-deps chromium",
     "build": "npm run build --prefix client",
     "start": "node server/index.js"
   }
