@@ -73,7 +73,7 @@ function App() {
         <h1 className="header-title">
           Bookmark Zen
         </h1>
-        <p className="header-subtitle">Organize your digital chaos.</p>
+        <p className="header-subtitle glass-panel">Organize your digital chaos.</p>
       </header>
 
       <main>
