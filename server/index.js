@@ -263,7 +263,7 @@ app.post('/analyze', async (req, res) => {
                 db.query(
                     `UPDATE links SET title=$1, description=$2, keywords=$3, metadata_json=$4, last_scraped_at=NOW(), http_status=200 WHERE url=$5`,
                     [meta.title, meta.description, meta.keywords, meta, url]
-                ).catch(() => { });
+                ).catch(err => console.error(`DB Update Success Error for ${url}:`, err.message));
 
                 await context.close();
 
@@ -277,7 +277,7 @@ app.post('/analyze', async (req, res) => {
                 db.query(
                     `UPDATE links SET http_status=500, last_scraped_at=NOW() WHERE url=$1`,
                     [url]
-                ).catch(() => { });
+                ).catch(err => console.error(`DB Update Fail Error for ${url}:`, err.message));
             }
         }
     } catch (err) {
