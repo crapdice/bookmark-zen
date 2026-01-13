@@ -3,7 +3,7 @@ const { Pool } = require('pg');
 // Create a new pool using environment variables
 // Railway provides these automatically (DATABASE_URL)
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.DATABASE_URL || process.env.DATABASE_PUBLIC_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 

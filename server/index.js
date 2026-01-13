@@ -63,7 +63,7 @@ app.get('/debug-info', (req, res) => {
 // NEW: Database Debug Endpoint
 app.get('/debug-db', async (req, res) => {
     try {
-        const dbUrl = process.env.DATABASE_URL;
+        const dbUrl = process.env.DATABASE_URL || process.env.DATABASE_PUBLIC_URL;
         const hasDbUrl = !!dbUrl;
         let dbResult = null;
         let dbError = null;
