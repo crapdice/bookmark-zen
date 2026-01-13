@@ -599,6 +599,15 @@ app.use((req, res, next) => {
     }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
-});
+// Start Server
+const startServer = async () => {
+    // Run DB Migration (ensure schema is up to date)
+    await db.initDb();
+
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+        console.log(`Client build path: ${CLIENT_BUILD_PATH}`);
+    });
+};
+
+startServer();
