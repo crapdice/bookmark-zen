@@ -110,7 +110,7 @@ app.post('/upload', async (req, res) => {
                         );
                         */
                     } catch (err) {
-                        // console.error("DB Insert Error for " + url, err.message);
+                        console.error("DB Insert Error for " + url, err.message);
                         // Suppress for now if DB isn't connected/setup to avoid breaking the demo
                     }
                 })();
