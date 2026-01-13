@@ -210,7 +210,7 @@ app.post('/analyze', async (req, res) => {
                 db.query(
                     `UPDATE links SET title=$1, description=$2, media_type='pdf', metadata_json=$3 WHERE url=$4`,
                     [meta.title, meta.description, meta, url]
-                ).catch(() => { });
+                ).catch(err => console.error(`DB Update PDF Error for ${url}:`, err.message));
 
                 continue;
             }
