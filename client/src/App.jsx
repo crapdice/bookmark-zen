@@ -20,6 +20,23 @@ function App() {
   const [statusMsg, setStatusMsg] = useState('');
   const [currentUrl, setCurrentUrl] = useState('');
   const [progress, setProgress] = useState(0);
+  const [detectedBrowser, setDetectedBrowser] = useState(null);
+
+  // Detect Browser on Mount
+  React.useEffect(() => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    let browser = 'Unknown';
+    if (userAgent.includes('firefox')) {
+      browser = 'Firefox';
+    } else if (userAgent.includes('edg')) {
+      browser = 'Edge';
+    } else if (userAgent.includes('chrome')) {
+      browser = 'Chrome';
+    } else if (userAgent.includes('safari')) {
+      browser = 'Safari';
+    }
+    setDetectedBrowser(browser);
+  }, []);
 
   // Reusable Categorizer
   const runCategorization = async (bms, metas) => {
@@ -159,7 +176,7 @@ function App() {
       </header>
 
       <main>
-        {view === 'upload' && <UploadView onUpload={handleUpload} />}
+        {view === 'upload' && <UploadView onUpload={handleUpload} detectedBrowser={detectedBrowser} />}
         {view === 'processing' && <ProcessingView status={statusMsg} url={currentUrl} progress={progress} />}
         {view === 'dashboard' && <Dashboard bookmarks={bookmarks} metadata={metadata} categories={categories} />}
       </main>

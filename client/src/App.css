@@ -118,6 +118,45 @@
     color: var(--accent-color);
 }
 
+.import-instructions-container {
+    margin-bottom: 1.5rem;
+}
+
+.import-instructions-box {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 1.5rem;
+    max-width: 450px;
+    margin: 0 auto;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.detected-text {
+    font-weight: 500;
+    margin-bottom: 0.8rem;
+    color: var(--accent-color);
+}
+
+.instructions-content {
+    margin-top: 1rem;
+    opacity: 0.9;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    text-align: left;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.instructions-list {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.instructions-list li {
+    margin-bottom: 0.5rem;
+}
+
 .processing-container {
     padding: 3rem;
     text-align: center;
