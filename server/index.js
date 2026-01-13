@@ -41,6 +41,20 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
+app.get('/debug-info', (req, res) => {
+    const fs = require('fs');
+    const debug = {
+        cwd: process.cwd(),
+        dirname: __dirname,
+        clientBuildPath: CLIENT_BUILD_PATH,
+        buildPathExists: fs.existsSync(CLIENT_BUILD_PATH),
+        buildPathContents: fs.existsSync(CLIENT_BUILD_PATH) ? fs.readdirSync(CLIENT_BUILD_PATH) : 'N/A',
+        indexHtmlPath: path.join(CLIENT_BUILD_PATH, 'index.html'),
+        indexHtmlExists: fs.existsSync(path.join(CLIENT_BUILD_PATH, 'index.html'))
+    };
+    res.json(debug);
+});
+
 // 1. Upload & Parse
 app.post('/upload', (req, res) => {
     try {
