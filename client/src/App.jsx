@@ -21,7 +21,7 @@ function App() {
     setStatusMsg('Parsing file...');
 
     try {
-      const res = await axios.post('http://localhost:3001/upload', htmlContent, { headers: { 'Content-Type': 'text/html' } });
+      const res = await axios.post('/upload', htmlContent, { headers: { 'Content-Type': 'text/html' } });
 
       if (res.data.success) {
         setBookmarks(res.data.bookmarks);
@@ -40,7 +40,7 @@ function App() {
           setStatusMsg(`Analyzing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(total / BATCH_SIZE)}...`);
 
           try {
-            const analysisRes = await axios.post('http://localhost:3001/analyze', { urls: batch });
+            const analysisRes = await axios.post('/analyze', { urls: batch });
             allMetadata = { ...allMetadata, ...analysisRes.data };
             setMetadata(prev => ({ ...prev, ...analysisRes.data }));
           } catch (e) {
@@ -54,7 +54,7 @@ function App() {
         setStatusMsg('Organizing content...');
 
         // Categorize with ALL metadata
-        const catRes = await axios.post('http://localhost:3001/categorize', { bookmarks: res.data.bookmarks, metadata: allMetadata });
+        const catRes = await axios.post('/categorize', { bookmarks: res.data.bookmarks, metadata: allMetadata });
         setCategories(catRes.data.categories);
 
         setView('dashboard');
